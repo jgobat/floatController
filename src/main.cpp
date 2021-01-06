@@ -1,9 +1,4 @@
-/**
- * Blink
- *
- * Turns on an LED on for one second,
- * then off for one second, repeatedly.
- */
+
 #include "Arduino.h"
 #include <SimpleSerialShell.h>
 #include "pindefs.h"
@@ -29,9 +24,9 @@ setup()
   Serial.begin(9600);
   shell.attach(Serial);
 
-  shell.addCommand("pwr", debugINA233);
-  shell.addCommand("motor", actuatorCmd);
-  shell.addCommand("dir", printDirectory);
+  shell.addCommand(F("pwr"), debugINA233);
+  shell.addCommand(F("motor"), actuatorCmd);
+  shell.addCommand(F("dir"), printDirectory);
 
   initINA233();
   actuatorInit();
