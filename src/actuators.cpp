@@ -1,6 +1,10 @@
 #include "Arduino.h"
 #include "pindefs.h"
 #include <printf.h>
+#include "eevars.h"
+
+// user command calling convention is that the "axes" are 1-5 (unit offset)
+// internally, the arrays of control pins, etc. are zero offset (0-4)
 
 static int actA[] = { TEENSY_ACT1CTLA, TEENSY_ACT2CTLA, TEENSY_ACT3CTLA, TEENSY_ACT4CTLA, TEENSY_ACT5CTLA };
 static int actB[] = { TEENSY_ACT1CTLB, TEENSY_ACT2CTLB, TEENSY_ACT3CTLB, TEENSY_ACT4CTLB, TEENSY_ACT5CTLB };
@@ -30,15 +34,17 @@ actuatorCmd(int argc, char **argv)
     int pwm_A, pwm_B;
 
     if (argc != 3 && argc != 4) {
-        printf("Invalid request. Usage: motor N [fwd|rev|brake|off] [PWM_A PWM_B]\n"); Serial.flush();
+        printf("Invalid request. Usage: motor [1-5] [fwd|rev|brake|off] [PWM_A PWM_B]\n"); Serial.flush();
         return 1;
     }
 
-    if ((which = atoi(argv[1])) < 0 || which > 4) {
-        printf("Invalid actuator number %d (must be 0-4)\n", which);
+    if ((which = atoi(argv[1])) < 1 || which > 5) {
+        printf("Invalid actuator number %d (must be 1-5)\n", which);
         return 1;
     }
         
+    which --;
+
     if (argc == 3) {    
         if (strcmp(argv[2], "fwd") == 0 || strcmp(argv[2], "on") == 0) {
             actuatorState(which, FULL, 0);
@@ -137,7 +143,50 @@ actuatorInit(void)
     }
     analogWriteResolution(12);
     analogReadResolution(12);
-    actuator1CurrentLimit(1.0);
+    actuator1CurrentLimit(f_ee[eeACT1_CURR_MAX]);
 
     return 0;
+}
+
+int
+actuatorReadPosition(int argc, char **argv)
+{
+    int which, count, i;
+    int pos1, pos2, pos;
+
+    if (argc < 2) {
+        printf("invalid request. Usage: pos [1|3|4] [N] (use N=-1 for continuous, Ctrl-d to stop)\n");
+        return 1;
+    }
+
+    if (argc == 3)
+        count = atoi(argv[2]);
+    else
+        count = 1;
+
+    which = atoi(argv[1]) - 1;
+    if (count == 0 || (which != 0 && which != 2 && which != 3)) {
+        printf("Invalid request.\n");
+        return 1;
+    }
+
+    i = 0;
+    while (count < 0 || i < count) {   
+        if (which == 0) {
+            pos = actuatorPosition(&pos1, &pos2);
+            printf("%d (%d, %d)\n", pos, pos1, pos2);
+        }
+        else if (which == 2)
+            printf("%d\n", actuator3Position());
+        else if (which == 3)
+            printf("%d\n", actuator4Position());
+
+        i++;
+        if (Serial.read() == 0x04)
+            break;
+
+        delay(500);
+    }
+
+    return 0;       
 }
