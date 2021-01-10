@@ -4,6 +4,8 @@
 
 INA233 ina233(0x40);
 
+elapsedMillis ina233_since;
+
 void
 initINA233(void)
 {
@@ -16,6 +18,7 @@ initINA233(void)
 
   ina233.begin();
   ina233.setCalibration(0.025, 3.0, &Current_LSB,&Power_LSB,&m_c,&R_c,&m_p,&R_p, &Set_ERROR);  
+  ina233_since = 0;
 }
 
 
@@ -34,7 +37,6 @@ debugINA233(int argc, char **argv)
   return 0;
 }
 
-elapsedMillis ina233_since;
 
 long
 readINA233(float *V, float *mA, float *mW, float *av_mW)

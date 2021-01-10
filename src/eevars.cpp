@@ -77,6 +77,30 @@ eeStringSearch(char *name)
     return -1;
 }
 
+char *
+eeGetString(char *name)
+{
+    int idx;
+
+    idx = eeStringSearch(name);
+    if (idx > -1)
+        return s_ee[idx];
+
+    return NULL;    
+}
+
+float
+eeGetFloat(char *name)
+{
+    int idx;
+
+    idx = eeSearch(name);
+    if (idx > -1)
+        return f_ee[idx];
+
+    return NAN;    
+}
+
 int
 eeParseFloatVar(int argc, char **argv)
 {

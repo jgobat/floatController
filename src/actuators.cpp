@@ -3,6 +3,8 @@
 #include <printf.h>
 #include "eevars.h"
 
+extern void readINA233(float *, float *, float *, float *);
+
 // user command calling convention is that the "axes" are 1-5 (unit offset)
 // internally, the arrays of control pins, etc. are zero offset (0-4)
 
@@ -129,6 +131,12 @@ actuatorPosition(int *fb1, int *fb2)
 }
 
 int
+actuator1Position(void)
+{
+    return actuatorPosition(NULL, NULL);
+}
+int
+
 actuatorInit(void)
 {
     int i;
@@ -189,4 +197,69 @@ actuatorReadPosition(int argc, char **argv)
     }
 
     return 0;       
+}
+
+int 
+actuatorMove(int argc, char **argv)
+{
+    int (*pos[])(void) = {actuator1Position, NULL, actuator3Position, actuator4Position, NULL};
+    int i_min[] = { eeACT1_MIN, -1, eeACT3_MIN, eeACT4_MIN, -1};
+    int min;
+    int max;
+    int p;
+    int which;
+    int counts = 0, dir = 1;
+    elapsedMillis ms;
+    uint32_t next;
+    float mA, V, av_mW;
+
+    if (argc != 3) {
+        printf("Invalid request. Usage: move [1-5] [counts|dir]\n"); Serial.flush();
+        return 1;
+    }
+
+    if ((which = atoi(argv[1])) < 1 || which > 5) {
+        printf("Invalid actuator number %d (must be 1-5)\n", which);
+        return 1;
+    }
+        
+    which --;
+
+    if (i_min[which] > -1) {
+        min = f_ee[i_min[which]];
+        max = f_ee[i_min[which] + 1];
+        p = pos[which]();
+        counts = atoi(argv[2]);
+        if (counts > max) counts = max;
+        else if (counts < min) counts = min;
+        dir = (counts > p) ? 1 : -1;
+    }
+    else {
+        p = min = max = -1;
+        dir = atoi(argv[2]);
+        if (dir != 1 && dir != -1) {
+            printf("Invalid direction for acuator without feedback (must be 1 or -1).\n");
+            return 1;
+        }
+    }
+
+    printf("ctrl-d to stop\n");
+
+    actuatorState(which, dir == 1 ? FULL : 0, dir == -1 ? FULL : 0);
+    ms = 0; next = 0;
+    readINA233(&V, &mA, NULL, &av_mW);
+
+    while(Serial.read() != 0x04 && (pos[which] == NULL || ((p = pos[which]()) - counts)*dir < 0)) {
+        if (ms > next) {
+            readINA233(&V, &mA, NULL, NULL); // don't read average mW or we'll clear it
+            printf("%05.2fs %04d %5.2fV %5.2fmA\n", ((float) ms)/1000.0, p, V, mA); 
+            next = ms + 1000;
+        }
+    }
+    actuatorState(which, 0, 0);
+
+    readINA233(NULL, NULL, NULL, &av_mW);
+    printf("average power = %.2f mW\n", av_mW);
+
+    return 0;
 }

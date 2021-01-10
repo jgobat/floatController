@@ -1,0 +1,20 @@
+i2c to avr - alarm settings, power down, ...?
+avr low-power, wake on magnet, then on i2c
+avr watchdog reset, watchdog stroke on i2c
+avr alarm power off and on
+calibrate avr osc clock against teensy?
+both sides of WiFi
+quoted arguments
+low-power sleep (Snooze)
+periodic job scheduler
+Iridium comms
+GPS handling
+
+hw -
+update avr to larger part
+add 32 kHz crystal?
+fix 5V reg placement - or is it ok when teensy not socketed
+fix i2c add-on 0.1" header pinout
+pressure board
+RF board
+programming header for avr
