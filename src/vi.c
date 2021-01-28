@@ -349,7 +349,12 @@ static void show_help(void)
 
 static void write1(const char *out)
 {
-	fputs(out, stdout);
+	// fputs(out, stdout);	
+	char *ptr = out;
+	while(*ptr) {
+	    _putchar(*ptr);
+		ptr ++;
+	}	
 }
 
 #if ENABLE_FEATURE_VI_WIN_RESIZE
@@ -374,7 +379,7 @@ static int mysleep(int hund)
 {
     // system dependent delay function
     // return should check input queue
-	return 1;
+	return _waitchar(hund*10);
 }
 
 //----- Set terminal attributes --------------------------------
@@ -386,7 +391,7 @@ static void rawmode(void)
 
 static void cookmode(void)
 {
-	fflush(NULL);
+	// fflush(NULL);
 	// tcsetattr_stdin_TCSANOW(&term_orig);
 }
 
@@ -726,7 +731,7 @@ static char* format_line(char *src /*, int li*/)
 static void refresh(int full_screen)
 {
 #define old_offset refresh__old_offset
-
+	int j;
 	int li, changed;
 	char *tp, *sp;		// pointer into text[] and screen[]
 
@@ -803,7 +808,9 @@ static void refresh(int full_screen)
 			memcpy(sp+cs, out_buf+cs, ce-cs+1);
 			place_cursor(li, cs);
 			// write line out to terminal
-			fwrite(&sp[cs], ce - cs + 1, 1, stdout);
+			for (j = cs; j <= ce; j++)
+				_putchar(sp[j]);
+			// fwrite(&sp[cs], ce - cs + 1, 1, stdout);
 		}
 	}
 
@@ -852,7 +859,7 @@ static int readit(void) // read (maybe cursor) key from stdin
 {
 	int c;
 
-	fflush(NULL);
+	//fflush(NULL);
 
 	// Wait for input. TIMEOUT = -1 makes read_key wait even
 	// on nonblocking stdin.
@@ -1053,7 +1060,7 @@ static void show_status_line(void)
 		}
 		place_cursor(crow, ccol);  // put cursor back in correct place
 	}
-	fflush(NULL);
+	//fflush(NULL);
 }
 
 //----- format the status buffer, the bottom line of screen ------
@@ -1084,7 +1091,7 @@ static void status_line_bold(const char *format, ...)
 }
 static void status_line_bold_errno(const char *fn)
 {
-	status_line_bold("'%s'", strerror(errno));
+	status_line_bold("'%s' %s", fn, strerror(errno));
 }
 
 // copy s to buf, convert unprintable
@@ -1686,7 +1693,7 @@ static char *yank_delete(char *start, char *stop, int dist, int yf, int undo)
 static int file_insert(const char *fn, char *p, int initial)
 {
 	int cnt = -1;
-	int fd, size;
+	int ret, fd, size;
 	struct stat statbuf;
 
 	if (p < text)
@@ -1694,25 +1701,28 @@ static int file_insert(const char *fn, char *p, int initial)
 	if (p > end)
 		p = end;
 
-	fd = open(fn, O_RDONLY);
-	if (fd < 0) {
-		if (!initial)
-			status_line_bold_errno(fn);
+	// Validate file
+	if ((ret = _statFile(fn, &statbuf)) < 0) {
+		status_line_bold("could not stat '%s', %d/%d/%s", fn, ret, errno, strerror(errno));
 		return cnt;
 	}
 
-	// Validate file
-	if (fstat(fd, &statbuf) < 0) {
-		status_line_bold_errno(fn);
-		goto fi;
-	}
 	if (!S_ISREG(statbuf.st_mode)) {
 		status_line_bold("'%s' is not a regular file", fn);
-		goto fi;
+		return cnt;
 	}
+
+	fd = _openFile(fn, O_RDONLY, 0);
+	if (fd < 0) {
+		// if (!initial)
+			status_line_bold("open error '%s', %d/%d/%s", fn, fd, errno, strerror(errno));
+		
+		return cnt;
+	}
+
 	size = (statbuf.st_size < INT_MAX ? (int)statbuf.st_size : INT_MAX);
 	p += text_hole_make(p, size);
-	cnt = read(fd, p, size);
+	cnt = _readFile(fd, p, size);
 	if (cnt < 0) {
 		status_line_bold_errno(fn);
 		p = text_hole_delete(p, p + size - 1, NO_UNDO);	// un-do buffer insert
@@ -1722,7 +1732,7 @@ static int file_insert(const char *fn, char *p, int initial)
 		status_line_bold("can't read '%s'", fn);
 	}
  fi:
-	close(fd);
+	_closeFile(fd);
 
 #if ENABLE_FEATURE_VI_READONLY
 	if (initial
@@ -1947,19 +1957,19 @@ static int file_write(char *fn, char *first, char *last)
 	// By popular request we do not open file with O_TRUNC,
 	// but instead ftruncate() it _after_ successful write.
 	// Might reduce amount of data lost on power fail etc.
-	fd = open(fn, (O_WRONLY | O_CREAT), 0666);
+	fd = _openFile(fn, (O_WRONLY | O_CREAT | O_TRUNC), 0666);
 	if (fd < 0)
 		return -1;
 	cnt = last - first + 1;
-	charcnt = write(fd, first, cnt);
-	ftruncate(fd, charcnt);
-	if (charcnt == cnt) {
+	charcnt = _writeFile(fd, first, cnt);
+	// ftruncate(fd, charcnt);
+/* 	if (charcnt == cnt) {
 		// good write
 		//modified_count = FALSE;
 	} else {
 		charcnt = 0;
-	}
-	close(fd);
+	} */
+	_closeFile(fd);
 	return charcnt;
 }
 
@@ -2421,7 +2431,7 @@ static void colon(char *buf)
 			r = end_line(dot);
 		}
 		go_bottom_and_clear_to_eol();
-		puts("\r");
+		write1("\r");
 		for (; q <= r; q++) {
 			int c_is_no_print;
 
@@ -3781,211 +3791,7 @@ static void do_cmd(int c)
 		dot--;
 }
 
-// NB!  the CRASHME code is unmaintained, and doesn't currently build
-#if ENABLE_FEATURE_VI_CRASHME
-static int totalcmds = 0;
-static int Mp = 85;             // Movement command Probability
-static int Np = 90;             // Non-movement command Probability
-static int Dp = 96;             // Delete command Probability
-static int Ip = 97;             // Insert command Probability
-static int Yp = 98;             // Yank command Probability
-static int Pp = 99;             // Put command Probability
-static int M = 0, N = 0, I = 0, D = 0, Y = 0, P = 0, U = 0;
-static const char chars[20] = "\t012345 abcdABCD-=.$";
-static const char *const words[20] = {
-	"this", "is", "a", "test",
-	"broadcast", "the", "emergency", "of",
-	"system", "quick", "brown", "fox",
-	"jumped", "over", "lazy", "dogs",
-	"back", "January", "Febuary", "March"
-};
-static const char *const lines[20] = {
-	"You should have received a copy of the GNU General Public License\n",
-	"char c, cm, *cmd, *cmd1;\n",
-	"generate a command by percentages\n",
-	"Numbers may be typed as a prefix to some commands.\n",
-	"Quit, discarding changes!\n",
-	"Forced write, if permission originally not valid.\n",
-	"In general, any ex or ed command (such as substitute or delete).\n",
-	"I have tickets available for the Blazers vs LA Clippers for Monday, Janurary 1 at 1:00pm.\n",
-	"Please get w/ me and I will go over it with you.\n",
-	"The following is a list of scheduled, committed changes.\n",
-	"1.   Launch Norton Antivirus (Start, Programs, Norton Antivirus)\n",
-	"Reminder....Town Meeting in Central Perk cafe today at 3:00pm.\n",
-	"Any question about transactions please contact Sterling Huxley.\n",
-	"I will try to get back to you by Friday, December 31.\n",
-	"This Change will be implemented on Friday.\n",
-	"Let me know if you have problems accessing this;\n",
-	"Sterling Huxley recently added you to the access list.\n",
-	"Would you like to go to lunch?\n",
-	"The last command will be automatically run.\n",
-	"This is too much english for a computer geek.\n",
-};
-static char *multilines[20] = {
-	"You should have received a copy of the GNU General Public License\n",
-	"char c, cm, *cmd, *cmd1;\n",
-	"generate a command by percentages\n",
-	"Numbers may be typed as a prefix to some commands.\n",
-	"Quit, discarding changes!\n",
-	"Forced write, if permission originally not valid.\n",
-	"In general, any ex or ed command (such as substitute or delete).\n",
-	"I have tickets available for the Blazers vs LA Clippers for Monday, Janurary 1 at 1:00pm.\n",
-	"Please get w/ me and I will go over it with you.\n",
-	"The following is a list of scheduled, committed changes.\n",
-	"1.   Launch Norton Antivirus (Start, Programs, Norton Antivirus)\n",
-	"Reminder....Town Meeting in Central Perk cafe today at 3:00pm.\n",
-	"Any question about transactions please contact Sterling Huxley.\n",
-	"I will try to get back to you by Friday, December 31.\n",
-	"This Change will be implemented on Friday.\n",
-	"Let me know if you have problems accessing this;\n",
-	"Sterling Huxley recently added you to the access list.\n",
-	"Would you like to go to lunch?\n",
-	"The last command will be automatically run.\n",
-	"This is too much english for a computer geek.\n",
-};
 
-// create a random command to execute
-static void crash_dummy()
-{
-	static int sleeptime;   // how long to pause between commands
-	char c, cm, *cmd, *cmd1;
-	int i, cnt, thing, rbi, startrbi, percent;
-
-	// "dot" movement commands
-	cmd1 = " \n\r\002\004\005\006\025\0310^$-+wWeEbBhjklHL";
-
-	// is there already a command running?
-	if (readbuffer[0] > 0)
-		goto cd1;
- cd0:
-	readbuffer[0] = 'X';
-	startrbi = rbi = 1;
-	sleeptime = 0;          // how long to pause between commands
-	memset(readbuffer, '\0', sizeof(readbuffer));
-	// generate a command by percentages
-	percent = (int) lrand48() % 100;        // get a number from 0-99
-	if (percent < Mp) {     //  Movement commands
-		// available commands
-		cmd = cmd1;
-		M++;
-	} else if (percent < Np) {      //  non-movement commands
-		cmd = "mz<>\'\"";       // available commands
-		N++;
-	} else if (percent < Dp) {      //  Delete commands
-		cmd = "dx";             // available commands
-		D++;
-	} else if (percent < Ip) {      //  Inset commands
-		cmd = "iIaAsrJ";        // available commands
-		I++;
-	} else if (percent < Yp) {      //  Yank commands
-		cmd = "yY";             // available commands
-		Y++;
-	} else if (percent < Pp) {      //  Put commands
-		cmd = "pP";             // available commands
-		P++;
-	} else {
-		// We do not know how to handle this command, try again
-		U++;
-		goto cd0;
-	}
-	// randomly pick one of the available cmds from "cmd[]"
-	i = (int) lrand48() % strlen(cmd);
-	cm = cmd[i];
-	if (strchr(":\024", cm))
-		goto cd0;               // dont allow colon or ctrl-T commands
-	readbuffer[rbi++] = cm; // put cmd into input buffer
-
-	// now we have the command-
-	// there are 1, 2, and multi char commands
-	// find out which and generate the rest of command as necessary
-	if (strchr("dmryz<>\'\"", cm)) {        // 2-char commands
-		cmd1 = " \n\r0$^-+wWeEbBhjklHL";
-		if (cm == 'm' || cm == '\'' || cm == '\"') {    // pick a reg[]
-			cmd1 = "abcdefghijklmnopqrstuvwxyz";
-		}
-		thing = (int) lrand48() % strlen(cmd1); // pick a movement command
-		c = cmd1[thing];
-		readbuffer[rbi++] = c;  // add movement to input buffer
-	}
-	if (strchr("iIaAsc", cm)) {     // multi-char commands
-		if (cm == 'c') {
-			// change some thing
-			thing = (int) lrand48() % strlen(cmd1); // pick a movement command
-			c = cmd1[thing];
-			readbuffer[rbi++] = c;  // add movement to input buffer
-		}
-		thing = (int) lrand48() % 4;    // what thing to insert
-		cnt = (int) lrand48() % 10;     // how many to insert
-		for (i = 0; i < cnt; i++) {
-			if (thing == 0) {       // insert chars
-				readbuffer[rbi++] = chars[((int) lrand48() % strlen(chars))];
-			} else if (thing == 1) {        // insert words
-				strcat(readbuffer, words[(int) lrand48() % 20]);
-				strcat(readbuffer, " ");
-				sleeptime = 0;  // how fast to type
-			} else if (thing == 2) {        // insert lines
-				strcat(readbuffer, lines[(int) lrand48() % 20]);
-				sleeptime = 0;  // how fast to type
-			} else {        // insert multi-lines
-				strcat(readbuffer, multilines[(int) lrand48() % 20]);
-				sleeptime = 0;  // how fast to type
-			}
-		}
-		strcat(readbuffer, ESC);
-	}
-	readbuffer[0] = strlen(readbuffer + 1);
- cd1:
-	totalcmds++;
-	if (sleeptime > 0)
-		mysleep(sleeptime);      // sleep 1/100 sec
-}
-
-// test to see if there are any errors
-static void crash_test()
-{
-	static time_t oldtim;
-
-	time_t tim;
-	char d[2], msg[80];
-
-	msg[0] = '\0';
-	if (end < text) {
-		strcat(msg, "end<text ");
-	}
-	if (end > textend) {
-		strcat(msg, "end>textend ");
-	}
-	if (dot < text) {
-		strcat(msg, "dot<text ");
-	}
-	if (dot > end) {
-		strcat(msg, "dot>end ");
-	}
-	if (screenbegin < text) {
-		strcat(msg, "screenbegin<text ");
-	}
-	if (screenbegin > end - 1) {
-		strcat(msg, "screenbegin>end-1 ");
-	}
-
-	if (msg[0]) {
-		printf("\n\n%d: \'%c\' %s\n\n\n%s[Hit return to continue]%s",
-			totalcmds, last_input_char, msg, ESC_BOLD_TEXT, ESC_NORM_TEXT);
-		fflush(NULL);
-		while (safe_read(STDIN_FILENO, d, 1) > 0) {
-			if (d[0] == '\n' || d[0] == '\r')
-				break;
-		}
-	}
-	tim = time(NULL);
-	if (tim >= (oldtim + 3)) {
-		sprintf(status_buffer,
-				"Tot=%d: M=%d N=%d I=%d D=%d Y=%d P=%d U=%d size=%d",
-				totalcmds, M, N, I, D, Y, P, U, end - text + 1);
-		oldtim = tim;
-	}
-}
-#endif
 
 static void edit_file(char *fn)
 {
@@ -4006,7 +3812,7 @@ static void edit_file(char *fn)
 	if (G.get_rowcol_error /* TODO? && no input on stdin */) {
 		long k;
 		write1(ESC"[999;999H" ESC"[6n");
-		fflush(NULL);
+		//fflush(NULL);
 		k = read_key(STDIN_FILENO, readbuffer, /*timeout_ms:*/ 100);
 		if ((int32_t)k == KEYCODE_CURSOR_POS) {
 			uint32_t rc = (k >> 32);

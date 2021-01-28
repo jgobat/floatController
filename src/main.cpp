@@ -5,6 +5,7 @@
 #include "pindefs.h"
 #include <printf.h>
 #include <TimeLib.h>
+#include <errno.h>
 
 extern void initINA233(void);
 extern int  debugINA233(int argc, char **argv);
@@ -35,18 +36,147 @@ extern int rmCmd(int argc, char **argv);
 extern int renameCmd(int argc, char **argv);
 extern int cpCmd(int argc, char **argv);
 
+extern "C" int vi_main(int argc, char **argv);
+
 SdFat sd;
 
 Stream * console;
 SdFile * consoleRedirect;
+
+extern "C" {
 
 void
 _putchar(char c)
 {
   if (consoleRedirect)
     consoleRedirect -> write(c);
-  else  
+  else { 
+    if (c == '\n')
+      console -> print('\r');
+    
     console -> print(c);
+  }
+}
+
+int
+_waitchar(long timeout)
+{
+    elapsedMillis ms = 0;
+
+    while(ms < timeout && Serial.available() == 0) {
+        // yield();
+    }
+
+    return Serial.available();
+}
+
+int
+_getchar(void)
+{
+    while(Serial.available() == 0) {
+        // yield();
+    }
+
+    return Serial.read();
+}
+
+SdFile files[5];
+int filesOpen[5] = {0,0,0,0,0};
+char *filesName[5] = {NULL, NULL, NULL, NULL, NULL};
+
+int
+_readFile(int fd, char *ptr, int n)
+{
+  if (!filesOpen[fd])
+    return -1;
+
+  return files[fd].read(ptr, n);
+
+}
+
+int
+_writeFile(int fd, char *ptr, int n)
+{
+  if (!filesOpen[fd])
+    return -1;
+
+  return files[fd].write(ptr, n);
+}
+
+int
+_openFile(const char *name, int flags, int mode)
+{
+  int i;
+
+  for (i = 0 ; i < 5 ; i++) {
+    if (!filesOpen[i])
+      break; 
+  }
+
+  if (i == 5) {
+    errno = ENFILE;
+    return -1;
+  }
+    
+
+  if (!files[i].open(name, flags)) {
+    errno = ENOENT;
+    return -1;
+  }
+
+  if (filesName[i]) free(filesName[i]);
+  filesName[i] = strdup(name);
+  filesOpen[i] = 1;
+
+  return i;
+}
+
+int
+_closeFile(int fd)
+{
+  if (filesOpen[fd]) {
+    files[fd].close();
+    filesOpen[fd] = 0;
+    free(filesName[fd]);
+    filesName[fd] = NULL;
+  }
+  return 0;
+}
+
+int
+_statFile(const char *nam, struct stat *st)
+{
+  SdFile f;
+  int i;
+  int closeIt = 1;
+
+  for (i = 0 ; i < 5 ; i++) {
+    if (filesOpen[i] && strcmp(filesName[i], nam) == 0) {
+      f = files[i];
+      closeIt = 0;
+      break;
+    }
+  }    
+
+  if (i == 5) {
+    if (!f.open(nam, O_RDONLY)) {
+      printf("could not open %s\n", nam);
+      errno = EINVAL;
+      return -1;
+    }
+  }
+
+  st -> st_size = f.fileSize();
+  if (f.isDir())
+    st -> st_mode = S_IFDIR;
+  else  
+    st -> st_mode = S_IFREG;
+
+  if (closeIt) f.close();
+
+  return 0;
+}
+
 }
 
 Stream *
@@ -96,6 +226,11 @@ clockCmd(int argc, char **argv)
       Teensy3Clock.set(now());
     }  
   }  
+  else {
+      printf("Invalid. Usage: clock [YYYY-mm-dd HH:MM:SS]\n");
+      return 1;
+  }
+
   return 0;
 }
 
@@ -188,11 +323,25 @@ printCmd(int argc, char **argv)
 }
 
 int
+viCmd(int argc, char **argv)
+{
+  /* struct stat st;
+  int ret;
+
+  ret = _statFile("foo.c", &st);
+  printf("ret = %d, %ld\n", ret, st.st_size);
+
+  return ret; */
+  return vi_main(argc, argv); 
+}
+
+int
 reset(int argc, char **argv)
 {
   _reboot_Teensyduino_();
   return 0; // silence warning
 }
+
 
 void 
 setup()
@@ -213,16 +362,18 @@ setup()
   shell.addCommand(F("move"),  actuatorMove, false, F("move motorN target"));
   shell.addCommand(F("pos"),   actuatorReadPosition, true, F("pos motorN"));
 
+  shell.addCommand(F("vi"),    viCmd, true, NULL);
   shell.addCommand(F("cat"),   catCmd, true, F("cat filespec [> dest]"));
   shell.addCommand(F("cd"),    cdCmd, true, NULL);
   shell.addCommand(F("mkdir"), mkdirCmd, true, NULL);
   shell.addCommand(F("rm"),    rmCmd, true, NULL);
   shell.addCommand(F("ren"),   renameCmd, true, NULL);
   shell.addCommand(F("cp"),    cpCmd, true, NULL);
+  // dir does it's own globbing so that dir *.dat isn't limited by MAXARGS
   shell.addCommand(F("dir"),   printDirectory, false, F("dir filespec"));
 
   shell.addCommand(F("clock"), clockCmd, false, F("clock [YYYY-mm-dd HH:MM:SS]"));
-  
+
   shell.addCommand(F("defaults"), eeReset, false, NULL);
   shell.addCommand(F("dump"), eeDump, false, NULL);
 
@@ -232,7 +383,13 @@ setup()
   shell.addCommand(F("script"), executeScript, true, F("script filename"));
   shell.addCommand(F("print"), printCmd, true, NULL);
   shell.addCommand(F("time"),  timeCmd, false, NULL);
-  shell.addCommand(F("repeat"), repeatCmd, false, NULL);
+  shell.addCommand(F("repeat"), repeatCmd, false, NULL); // call this loop?
+
+  // waitfor "expression"
+  // delay, sleep, usleep, 
+  // if "expression" command args
+  // _var "expression"
+  // expressions, including ! to evaluate return value of shell command? or set _retval?
 
   setSyncProvider(getTeensy3Time);
   
@@ -247,6 +404,7 @@ setup()
   else {
     // printf("wd = %s\n", sd.vol()->cwd(name, 16));
   }
+  printf("starting ...\n");
   printf("> ");
 } 
 
