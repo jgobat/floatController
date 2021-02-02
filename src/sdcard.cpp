@@ -5,7 +5,7 @@
 #include <fnmatch.h>
 
 extern SdFat sd;
-extern void __putchar(char c);
+extern void _putchar(char c);
 
 int
 catCmd(int argc, char **argv)
@@ -82,9 +82,13 @@ cpCmd(int argc, char **argv)
     if (argc != 3)
         return 1;
 
-    if (!in.open(argv[1]))
+    if (!in.open(argv[1])) {
+        printf("could not open %s\n", argv[1]);
         return 1;
-    if (!out.open(argv[1])) {
+    }
+
+    if (!out.open(argv[2], O_WRITE | O_CREAT)) {
+        printf("could not open %s\n", argv[2]);
         in.close();
         return 1;
     }
@@ -98,6 +102,7 @@ cpCmd(int argc, char **argv)
     free(buff);
     return 0;
 }
+
 int
 printDirectory(int argc, char **argv)
 {
@@ -108,11 +113,19 @@ printDirectory(int argc, char **argv)
     int     i;
     uint16_t date, tim;
     uint64_t size;
-    char cwd[16];
+    char cwd1[32], cwd[32];
 
-    sd.vol()->cwd(cwd, 16);
+    if (argc == 2 && strchr(argv[1], '/')) {
+        sprintf(cwd1, "/%s", argv[1][0] == '/' ? argv[1] + 1 : argv[1]);
+        argc --;
+        argv ++;
+    }
+    else {    
+        sd.vol()->cwd(cwd, 16);
+        sprintf(cwd1, "/%s", cwd);
+    }
 
-    if (!root.open(cwd)) {
+    if (!root.open(cwd1)) {
         printf("root open fail\n");
         return 1;
     }    

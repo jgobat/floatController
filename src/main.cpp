@@ -6,6 +6,11 @@
 #include <printf.h>
 #include <TimeLib.h>
 #include <errno.h>
+#include <malloc.h>
+#include <opts.h>
+extern "C" {
+#include "expressions.h"
+}
 
 extern void initINA233(void);
 extern int  debugINA233(int argc, char **argv);
@@ -24,7 +29,7 @@ extern int    eeParseVar(int argc, char **argv);
 extern void   eeInit(void);
 extern int    eeDump(int argc, char **argv);
 extern int    eeReset(int argc, char **argv);
-extern float  eeGetFloat(char *);
+extern "C" float  eeGetFloat(char *);
 extern char  *eeGetString(char *);
 
 extern int portTerminal(int argc, char **argv);
@@ -37,6 +42,9 @@ extern int renameCmd(int argc, char **argv);
 extern int cpCmd(int argc, char **argv);
 
 extern "C" int vi_main(int argc, char **argv);
+extern "C" int testCmd(int argc, char **argv);
+extern "C" Code initLexer(char *line);
+extern "C" double EvalCode(Code);
 
 SdFat sd;
 
@@ -63,57 +71,80 @@ _waitchar(long timeout)
 {
     elapsedMillis ms = 0;
 
-    while(ms < timeout && Serial.available() == 0) {
+    while(ms < timeout && console -> available() == 0) {
         // yield();
     }
 
-    return Serial.available();
+    return console -> available();
 }
 
 int
 _getchar(void)
 {
-    while(Serial.available() == 0) {
+    while(console -> available() == 0) {
         // yield();
     }
 
-    return Serial.read();
+    return console -> read();
 }
 
-SdFile files[5];
-int filesOpen[5] = {0,0,0,0,0};
-char *filesName[5] = {NULL, NULL, NULL, NULL, NULL};
+#define NFILES 5
+#define FILE0 10
+#define FILEN 14
 
-int
-_readFile(int fd, char *ptr, int n)
+SdFile files[NFILES];
+int filesOpen[NFILES] = {0,0,0,0,0};
+char *filesName[NFILES] = {NULL, NULL, NULL, NULL, NULL};
+
+int 
+_read(int fd, char *ptr, int n)
 {
-  if (!filesOpen[fd])
+  if (fd == 0) {
+    int i;
+    for (i = 0 ; i < n ; i++)
+      ptr[i] = _getchar();
+
+    return n;  
+  }
+
+  if (fd < FILE0 || fd > FILEN || !filesOpen[fd - FILE0])
     return -1;
 
-  return files[fd].read(ptr, n);
+  return files[fd - FILE0].read(ptr, n);
 
 }
-
+ 
 int
-_writeFile(int fd, char *ptr, int n)
+_write(int fd, char *ptr, int n)
 {
-  if (!filesOpen[fd])
+  if (fd == 1 || fd == 2) {
+    int i;
+    // loop through putchar so that we get \n -> \r\n translation
+    // rather than console -> write(ptr, n) which would be more
+    // efficient
+    for (i = 0 ; i < n ; i++) {
+      _putchar(ptr[i]);
+    }
+    return n;
+  }
+
+  if (fd < FILE0 || fd > FILEN || !filesOpen[fd - FILE0])
     return -1;
 
-  return files[fd].write(ptr, n);
+  return files[fd - FILE0].write(ptr, n);
 }
 
 int
-_openFile(const char *name, int flags, int mode)
+_open(const char *name, int flags, int mode)
 {
   int i;
 
-  for (i = 0 ; i < 5 ; i++) {
+  for (i = 0 ; i < NFILES ; i++) {
     if (!filesOpen[i])
       break; 
   }
 
-  if (i == 5) {
+  if (i == NFILES) {
     errno = ENFILE;
     return -1;
   }
@@ -128,29 +159,33 @@ _openFile(const char *name, int flags, int mode)
   filesName[i] = strdup(name);
   filesOpen[i] = 1;
 
-  return i;
+  return i + FILE0;
 }
 
 int
-_closeFile(int fd)
+_close(int fd)
 {
-  if (filesOpen[fd]) {
-    files[fd].close();
-    filesOpen[fd] = 0;
-    free(filesName[fd]);
-    filesName[fd] = NULL;
+  // what kind of error is trying to close stdin, stdout, stderr?
+  if (fd >= 0 && fd <= 2)
+    return 0;
+
+  if (fd >= FILE0 && fd <= FILEN && filesOpen[fd - FILE0]) {
+    files[fd - FILE0].close();
+    filesOpen[fd - FILE0] = 0;
+    free(filesName[fd - FILE0]);
+    filesName[fd - FILE0] = NULL;
   }
   return 0;
 }
 
 int
-_statFile(const char *nam, struct stat *st)
+_stat(const char *nam, struct stat *st)
 {
   SdFile f;
   int i;
   int closeIt = 1;
 
-  for (i = 0 ; i < 5 ; i++) {
+  for (i = 0 ; i < NFILES ; i++) {
     if (filesOpen[i] && strcmp(filesName[i], nam) == 0) {
       f = files[i];
       closeIt = 0;
@@ -158,9 +193,8 @@ _statFile(const char *nam, struct stat *st)
     }
   }    
 
-  if (i == 5) {
+  if (i == NFILES) {
     if (!f.open(nam, O_RDONLY)) {
-      printf("could not open %s\n", nam);
       errno = EINVAL;
       return -1;
     }
@@ -177,6 +211,18 @@ _statFile(const char *nam, struct stat *st)
   return 0;
 }
 
+}
+
+int
+lsofCmd(int argc, char **argv)
+{
+  int i;
+
+  for (i = 0 ; i < NFILES ; i++)
+    if (filesOpen[i])
+      printf("%s\n", filesName[i]);
+
+  return 0;
 }
 
 Stream *
@@ -205,6 +251,42 @@ gpioCmd(int argc, char **argv)
     digitalWrite(pin, state);
     return 0;
 }
+
+int
+memCmd(int argc, char **argv)
+{
+  struct mallinfo mi;
+
+  mi = mallinfo();
+  if (getBooleanOpt(argc, argv, "-v"))
+    printf("arena=%ld,ord=%ld,uord=%ld,ford=%ld\n", mi.arena, mi.ordblks, mi.uordblks, mi.fordblks);
+  else
+    printf("%ld\n", mi.uordblks);
+
+  return 0;
+}
+
+
+
+int 
+verCmd(int argc, char **argv)
+{
+  printf("%s %s\n", __DATE__, __TIME__);
+  if (getBooleanOpt(argc, argv, "-v")) {
+    uint32_t num;
+    __disable_irq();
+    kinetis_hsrun_disable();
+		FTFL_FSTAT = FTFL_FSTAT_RDCOLERR | FTFL_FSTAT_ACCERR | FTFL_FSTAT_FPVIOL;
+		*(uint32_t *)&FTFL_FCCOB3 = 0x41070000;
+		FTFL_FSTAT = FTFL_FSTAT_CCIF;
+		while (!(FTFL_FSTAT & FTFL_FSTAT_CCIF)) ; // wait
+		num = *(uint32_t *)&FTFL_FCCOBB;
+    kinetis_hsrun_enable();
+    __enable_irq();
+    printf("sn: %08x\n", num);
+  }
+  return 0;
+}  
 
 int
 clockCmd(int argc, char **argv)
@@ -311,6 +393,44 @@ repeatCmd(int argc, char **argv)
 
   return 0;  
 }
+
+int
+ifCmd(int argc, char **argv)
+{
+  char line[128];
+  Code code;
+  float x;
+
+  if (argc < 3 || (code = initLexer(argv[1])) == NULL)
+    return 1;
+
+  x = EvalCode(code);
+  FreeCode(code);
+  if (x) {
+    reconstituteLine(argc -2, argv + 2, line, 128);
+    shell.execute(line);
+  }
+  else {
+    return 1;
+  }
+
+  return 0; // do we care about the return value of the command 
+            // or do we not want to confuse a possible trailing else
+}
+
+int
+elseCmd(int argc, char **argv)
+{
+  char line[128];
+
+  if (shell.lastErrNo()) {
+    reconstituteLine(argc - 1, argv + 1, line, 128);
+    shell.execute(line);
+  }
+
+  return shell.lastErrNo();
+}
+
 int
 printCmd(int argc, char **argv)
 {
@@ -336,6 +456,18 @@ viCmd(int argc, char **argv)
 }
 
 int
+delayCmd(int argc, char **argv)
+{
+  long ms;
+
+  if (argc < 2 || (ms = atol(argv[1])) < 0)
+    return 1;
+
+  delay(ms);
+  return 0;
+}
+
+int
 reset(int argc, char **argv)
 {
   _reboot_Teensyduino_();
@@ -346,8 +478,9 @@ reset(int argc, char **argv)
 void 
 setup()
 {
+  Serial1.begin(9600);
   Serial.begin(9600);
-  setConsole(&Serial, NULL); // use Serial1 when not on USB
+  setConsole(&Serial1, NULL); // use Serial1 when not on USB
 
   shell.attach(*console);
   shell.addFallback(eeParseVar);   // need it for _ and $ as commands (variable sets and reads)
@@ -357,11 +490,14 @@ setup()
   shell.addSD(&sd); // need it for globbed arguments
   shell.addCommand(F("pwr"),  debugINA233, true, NULL);
   shell.addCommand(F("gpio"), gpioCmd, false, NULL);
+  shell.addCommand(F("mem"), memCmd, false, F("mem [-v]"));
+  shell.addCommand(F("ver"), verCmd, false, F("ver [-v]"));
 
   shell.addCommand(F("motor"), actuatorCmd, true, NULL);
   shell.addCommand(F("move"),  actuatorMove, false, F("move motorN target"));
   shell.addCommand(F("pos"),   actuatorReadPosition, true, F("pos motorN"));
 
+  shell.addCommand(F("lsof"),  lsofCmd, false, NULL);
   shell.addCommand(F("vi"),    viCmd, true, NULL);
   shell.addCommand(F("cat"),   catCmd, true, F("cat filespec [> dest]"));
   shell.addCommand(F("cd"),    cdCmd, true, NULL);
@@ -381,14 +517,20 @@ setup()
 
   shell.addCommand(F("term"), portTerminal, false, F("term port baud [addlf]"));
   shell.addCommand(F("script"), executeScript, true, F("script filename"));
-  shell.addCommand(F("print"), printCmd, true, NULL);
-  shell.addCommand(F("time"),  timeCmd, false, NULL);
-  shell.addCommand(F("repeat"), repeatCmd, false, NULL); // call this loop?
+  shell.addCommand(F("print"), printCmd, true, F("print arg1 arg2 arg3..."));
+  shell.addCommand(F("time"),  timeCmd, false, F("time cmd args"));
+  shell.addCommand(F("repeat"), repeatCmd, false, F("repeat N cmd args")); // call this loop?
+  shell.addCommand(F("test"), testCmd, true, NULL);
+  shell.addCommand(F("delay"), delayCmd, false, F("delay ms"));
+
+  shell.addCommand(F("else"), elseCmd, false, F("else cmd args"));
+  shell.addCommand(F("if"), ifCmd, false, F("if expression cmd args"));
 
   // waitfor "expression"
-  // delay, sleep, usleep, 
+  // sleep, usleep, 
   // if "expression" command args
   // _var "expression"
+  // else following any command that execs if previous command "fails" (returns 1)
   // expressions, including ! to evaluate return value of shell command? or set _retval?
 
   setSyncProvider(getTeensy3Time);
@@ -411,6 +553,6 @@ setup()
 void loop()
 {
   if (shell.executeIfInput()) {
-    printf("> ");  Serial.flush();
+    printf("> ");  console -> flush();
   } 
 }

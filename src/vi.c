@@ -21,6 +21,12 @@
 
 extern void _putchar(char c);
 
+#define _writeFile _write
+#define _readFile _read
+#define _statFile _stat
+#define _openFile _open
+#define _closeFile _close
+
 //
 //Things To Do:
 //	EXINIT

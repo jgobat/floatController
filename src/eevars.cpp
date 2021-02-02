@@ -89,6 +89,8 @@ eeGetString(char *name)
     return NULL;    
 }
 
+extern "C" float eeGetFloat(char *);
+
 float
 eeGetFloat(char *name)
 {
