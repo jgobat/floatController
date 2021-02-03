@@ -2,6 +2,9 @@
 #include <EEPROM.h>
 #include "eevars.h"
 #include <printf.h>
+extern "C" {
+    #include "expressions.h"
+}
 
 typedef struct {
     const char *name;
@@ -107,6 +110,7 @@ int
 eeParseFloatVar(int argc, char **argv)
 {
     int   i;
+    Code  code;
     
     if ((i = eeSearch(argv[0] + 1)) < 0)
         return 1;
@@ -114,8 +118,12 @@ eeParseFloatVar(int argc, char **argv)
     if (argc == 1)
         printf("%s[%d] = %f\n", argv[0] + 1, i, f_ee[i]);
     else {
-        f_ee[i] = atof(argv[1]);
-        eeSaveVar(i);    
+        code = initLexer(argv[1]);
+        if (code) {
+            f_ee[i] = EvalCode(code);
+            eeSaveVar(i);
+            FreeCode(code);
+        }    
     }
 
     return 0;
@@ -146,7 +154,7 @@ eeParseVar(int argc, char **argv)
     if ((argc != 1 && argc != 2) || (argv[0][0] != '_' && argv[0][0] != '$')) 
         return 1;
 
-    if (argv[0][0] == '_')
+    if (argv[0][0] == '_') 
         return eeParseFloatVar(argc, argv);
     else if (argv[0][0] == '$')
         return eeParseStringVar(argc, argv);

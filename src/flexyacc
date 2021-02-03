@@ -1,0 +1,4 @@
+#!/bin/tcsh
+
+flex -i -o lexer.c lexer.l
+yacc -d -v -o parser.c parser.y

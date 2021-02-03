@@ -445,14 +445,7 @@ printCmd(int argc, char **argv)
 int
 viCmd(int argc, char **argv)
 {
-  /* struct stat st;
-  int ret;
-
-  ret = _statFile("foo.c", &st);
-  printf("ret = %d, %ld\n", ret, st.st_size);
-
-  return ret; */
-  return vi_main(argc, argv); 
+  return vi_main(argc, argv);
 }
 
 int
@@ -470,7 +463,8 @@ delayCmd(int argc, char **argv)
 int
 reset(int argc, char **argv)
 {
-  _reboot_Teensyduino_();
+  __asm__ volatile("bkpt");
+  __builtin_unreachable();
   return 0; // silence warning
 }
 
@@ -488,43 +482,43 @@ setup()
   shell.addFloats(eeGetFloat);     // need it for _ arguments
   shell.addRedirector(setConsole); // need it for redirected commands
   shell.addSD(&sd); // need it for globbed arguments
-  shell.addCommand(F("pwr"),  debugINA233, true, NULL);
-  shell.addCommand(F("gpio"), gpioCmd, false, NULL);
-  shell.addCommand(F("mem"), memCmd, false, F("mem [-v]"));
-  shell.addCommand(F("ver"), verCmd, false, F("ver [-v]"));
+  shell.addCommand(F("pwr"),  debugINA233, true, true, NULL);
+  shell.addCommand(F("gpio"), gpioCmd, false, true, NULL);
+  shell.addCommand(F("mem"), memCmd, false, true, F("mem [-v]"));
+  shell.addCommand(F("ver"), verCmd, false, true, F("ver [-v]"));
 
-  shell.addCommand(F("motor"), actuatorCmd, true, NULL);
-  shell.addCommand(F("move"),  actuatorMove, false, F("move motorN target"));
-  shell.addCommand(F("pos"),   actuatorReadPosition, true, F("pos motorN"));
+  shell.addCommand(F("motor"), actuatorCmd, true, true, NULL);
+  shell.addCommand(F("move"),  actuatorMove, false, true, F("move motorN target"));
+  shell.addCommand(F("pos"),   actuatorReadPosition, true, true, F("pos motorN"));
 
-  shell.addCommand(F("lsof"),  lsofCmd, false, NULL);
-  shell.addCommand(F("vi"),    viCmd, true, NULL);
-  shell.addCommand(F("cat"),   catCmd, true, F("cat filespec [> dest]"));
-  shell.addCommand(F("cd"),    cdCmd, true, NULL);
-  shell.addCommand(F("mkdir"), mkdirCmd, true, NULL);
-  shell.addCommand(F("rm"),    rmCmd, true, NULL);
-  shell.addCommand(F("ren"),   renameCmd, true, NULL);
-  shell.addCommand(F("cp"),    cpCmd, true, NULL);
+  shell.addCommand(F("lsof"),  lsofCmd, false, true, NULL);
+  shell.addCommand(F("vi"),    viCmd, true, true, NULL);
+  shell.addCommand(F("cat"),   catCmd, true, true, F("cat filespec [> dest]"));
+  shell.addCommand(F("cd"),    cdCmd, true, true, NULL);
+  shell.addCommand(F("mkdir"), mkdirCmd, true, true, NULL);
+  shell.addCommand(F("rm"),    rmCmd, true, true, NULL);
+  shell.addCommand(F("ren"),   renameCmd, true, true, NULL);
+  shell.addCommand(F("cp"),    cpCmd, true, true, NULL);
   // dir does it's own globbing so that dir *.dat isn't limited by MAXARGS
-  shell.addCommand(F("dir"),   printDirectory, false, F("dir filespec"));
+  shell.addCommand(F("dir"),   printDirectory, false, true, F("dir filespec"));
 
-  shell.addCommand(F("clock"), clockCmd, false, F("clock [YYYY-mm-dd HH:MM:SS]"));
+  shell.addCommand(F("clock"), clockCmd, false, true, F("clock [YYYY-mm-dd HH:MM:SS]"));
 
-  shell.addCommand(F("defaults"), eeReset, false, NULL);
-  shell.addCommand(F("dump"), eeDump, false, NULL);
+  shell.addCommand(F("defaults"), eeReset, false, true, NULL);
+  shell.addCommand(F("dump"), eeDump, false, true, NULL);
 
-  shell.addCommand(F("reset"), reset, false, NULL);
+  shell.addCommand(F("reset"), reset, false, true, NULL);
 
-  shell.addCommand(F("term"), portTerminal, false, F("term port baud [addlf]"));
-  shell.addCommand(F("script"), executeScript, true, F("script filename"));
-  shell.addCommand(F("print"), printCmd, true, F("print arg1 arg2 arg3..."));
-  shell.addCommand(F("time"),  timeCmd, false, F("time cmd args"));
-  shell.addCommand(F("repeat"), repeatCmd, false, F("repeat N cmd args")); // call this loop?
-  shell.addCommand(F("test"), testCmd, true, NULL);
-  shell.addCommand(F("delay"), delayCmd, false, F("delay ms"));
+  shell.addCommand(F("term"), portTerminal, false, true, F("term port baud [addlf]"));
+  shell.addCommand(F("script"), executeScript, true, true, F("script filename"));
+  shell.addCommand(F("print"), printCmd, true, true, F("print arg1 arg2 arg3..."));
+  shell.addCommand(F("time"),  timeCmd, false, true, F("time cmd args"));
+  shell.addCommand(F("repeat"), repeatCmd, false, true, F("repeat N cmd args")); // call this loop?
+  shell.addCommand(F("test"), testCmd, true, true, NULL);
+  shell.addCommand(F("delay"), delayCmd, false, true, F("delay ms"));
 
-  shell.addCommand(F("else"), elseCmd, false, F("else cmd args"));
-  shell.addCommand(F("if"), ifCmd, false, F("if expression cmd args"));
+  shell.addCommand(F("else"), elseCmd, false, true, F("else cmd args"));
+  shell.addCommand(F("if"), ifCmd, false, false, F("if expression cmd args"));
 
   // waitfor "expression"
   // sleep, usleep, 
@@ -553,6 +547,6 @@ setup()
 void loop()
 {
   if (shell.executeIfInput()) {
-    printf("> ");  console -> flush();
+    // printf("> ");  console -> flush();
   } 
 }

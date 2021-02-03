@@ -23,28 +23,13 @@ char *lexinput;
 # define YY_INPUT(buf,result,max_size) \
 	    result = (*buf = *lexinput ++) ? 1 : (lexinput --, 0); 
 
-char **expression_varNames = NULL;
-int    num_expression_varNames = 0;
-
-int
-LookupVar(char *name)
-{
-    int i;
-
-    for(i = 0 ; i < num_expression_varNames && expression_varNames ; i++) {
-        if (strcmp(expression_varNames[i], name) == 0)
-            return i;
-    }
-
-    return -1;
-}
 
 %}
 
 digit	[0-9]
 exp	[eE][+-]?{digit}+
 punct	[.:] 		
-letter	[a-zA-Z_]
+letter	[a-zA-Z]
 lead    [_#]
 id	{lead}{letter}({letter}|{digit})*
 
@@ -129,7 +114,7 @@ static int err = 0;
 void yyerror (msg)
     char *msg;
 {
-    fprintf(stderr,"%s\n", msg);
+    printf("%s\n", msg);
     err ++;
 }
 

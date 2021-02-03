@@ -74,7 +74,8 @@
 # include <string.h>
 # include <math.h>
 # include "expressions.h"
-# include "eevars.h"
+
+extern float eeGetFloat(char *);
 
 extern void yyerror ( );
 extern int  yylex  ( );
@@ -85,7 +86,7 @@ int         x;
 float       varx;
 
 
-#line 89 "parser.c"
+#line 90 "parser.c"
 
 # ifndef YY_CAST
 #  ifdef __cplusplus
@@ -201,13 +202,13 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 20 "parser.y"
+#line 21 "parser.y"
 
     int           i;
     double        d;
     char         *s;
 
-#line 211 "parser.c"
+#line 212 "parser.c"
 
 };
 typedef union YYSTYPE YYSTYPE;
@@ -585,12 +586,12 @@ static const yytype_int8 yytranslate[] =
   /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_int16 yyrline[] =
 {
-       0,    54,    54,    61,    69,    80,    90,   100,   106,   112,
-     118,   124,   130,   136,   142,   148,   154,   160,   166,   172,
-     178,   184,   190,   196,   201,   207,   213,   219,   224,   230,
-     236,   252,   257,   263,   269,   275,   281,   288,   294,   300,
-     306,   312,   318,   324,   330,   336,   342,   348,   354,   360,
-     371,   380,   389,   400
+       0,    55,    55,    62,    70,    81,    91,   101,   107,   113,
+     119,   125,   131,   137,   143,   149,   155,   161,   167,   173,
+     179,   185,   191,   197,   202,   208,   214,   220,   225,   231,
+     237,   254,   259,   265,   271,   277,   283,   290,   296,   302,
+     308,   314,   320,   326,   332,   338,   344,   350,   356,   362,
+     373,   382,   391,   402
 };
 #endif
 
@@ -1583,16 +1584,16 @@ yyreduce:
   switch (yyn)
     {
   case 3:
-#line 62 "parser.y"
+#line 63 "parser.y"
             {
 		EmitCode (HaltOp);
 		SetIP (0);
 	    }
-#line 1592 "parser.c"
+#line 1593 "parser.c"
     break;
 
   case 4:
-#line 70 "parser.y"
+#line 71 "parser.y"
             {
 		int ip = GetIP ( );
 		SetIP (ip - (yyvsp[0].i) - 2);
@@ -1602,11 +1603,11 @@ yyreduce:
 		SetIP (ip);
 		(yyval.i) = (yyvsp[-6].i) + (yyvsp[-4].i) + (yyvsp[-3].i) + (yyvsp[-1].i) + (yyvsp[0].i);
 	    }
-#line 1606 "parser.c"
+#line 1607 "parser.c"
     break;
 
   case 5:
-#line 81 "parser.y"
+#line 82 "parser.y"
             {
 		int ip = GetIP ( );
 		SetIP (ip - (yyvsp[0].i) - 3);
@@ -1615,11 +1616,11 @@ yyreduce:
 		EmitCode (TestOp);
 		(yyval.i) = (yyvsp[-3].i) + (yyvsp[-1].i) + (yyvsp[0].i) + 1;
 	    }
-#line 1619 "parser.c"
+#line 1620 "parser.c"
     break;
 
   case 6:
-#line 91 "parser.y"
+#line 92 "parser.y"
             {
 		int ip = GetIP ( );
 		SetIP (ip - (yyvsp[0].i) - 3);
@@ -1628,221 +1629,222 @@ yyreduce:
 		EmitCode (TestOp);
 		(yyval.i) = (yyvsp[-3].i) + (yyvsp[-1].i) + (yyvsp[0].i) + 1;
 	    }
-#line 1632 "parser.c"
+#line 1633 "parser.c"
     break;
 
   case 7:
-#line 101 "parser.y"
+#line 102 "parser.y"
             {
 		EmitCode (OrOp);
 		(yyval.i) = (yyvsp[-2].i) + 1 + (yyvsp[0].i);
 	    }
-#line 1641 "parser.c"
+#line 1642 "parser.c"
     break;
 
   case 8:
-#line 107 "parser.y"
+#line 108 "parser.y"
             {
 		EmitCode (XorOp);
 		(yyval.i) = (yyvsp[-2].i) + 1 + (yyvsp[0].i);
 	    }
-#line 1650 "parser.c"
+#line 1651 "parser.c"
     break;
 
   case 9:
-#line 113 "parser.y"
+#line 114 "parser.y"
             {
 		EmitCode (AndOp);
 		(yyval.i) = (yyvsp[-2].i) + 1 + (yyvsp[0].i);
 	    }
-#line 1659 "parser.c"
+#line 1660 "parser.c"
     break;
 
   case 10:
-#line 119 "parser.y"
+#line 120 "parser.y"
             {
 		EmitCode (EqOp);
 		(yyval.i) = (yyvsp[-2].i) + 1 + (yyvsp[0].i);
 	    }
-#line 1668 "parser.c"
+#line 1669 "parser.c"
     break;
 
   case 11:
-#line 125 "parser.y"
+#line 126 "parser.y"
             {
 		EmitCode (NeqOp);
 		(yyval.i) = (yyvsp[-2].i) + 1 + (yyvsp[0].i);
 	    }
-#line 1677 "parser.c"
+#line 1678 "parser.c"
     break;
 
   case 12:
-#line 131 "parser.y"
+#line 132 "parser.y"
             {
 		EmitCode (LtOp);
 		(yyval.i) = (yyvsp[-2].i) + 1 + (yyvsp[0].i);
 	    }
-#line 1686 "parser.c"
+#line 1687 "parser.c"
     break;
 
   case 13:
-#line 137 "parser.y"
+#line 138 "parser.y"
             {
 		EmitCode (GtOp);
 		(yyval.i) = (yyvsp[-2].i) + 1 + (yyvsp[0].i);
 	    }
-#line 1695 "parser.c"
+#line 1696 "parser.c"
     break;
 
   case 14:
-#line 143 "parser.y"
+#line 144 "parser.y"
             {
 		EmitCode (LteqOp);
 		(yyval.i) = (yyvsp[-2].i) + 1 + (yyvsp[0].i);
 	    }
-#line 1704 "parser.c"
+#line 1705 "parser.c"
     break;
 
   case 15:
-#line 149 "parser.y"
+#line 150 "parser.y"
             {
 		EmitCode (GteqOp);
 		(yyval.i) = (yyvsp[-2].i) + 1 + (yyvsp[0].i);
 	    }
-#line 1713 "parser.c"
+#line 1714 "parser.c"
     break;
 
   case 16:
-#line 155 "parser.y"
+#line 156 "parser.y"
             {
 		EmitCode (LsftOp);
 		(yyval.i) = (yyvsp[-2].i) + 1 + (yyvsp[0].i);
 	    }
-#line 1722 "parser.c"
+#line 1723 "parser.c"
     break;
 
   case 17:
-#line 161 "parser.y"
+#line 162 "parser.y"
             {
 		EmitCode (RsftOp);
 		(yyval.i) = (yyvsp[-2].i) + 1 + (yyvsp[0].i);
 	    }
-#line 1731 "parser.c"
+#line 1732 "parser.c"
     break;
 
   case 18:
-#line 167 "parser.y"
+#line 168 "parser.y"
             {
 		EmitCode (AddOp);
 		(yyval.i) = (yyvsp[-2].i) + 1 + (yyvsp[0].i);
 	    }
-#line 1740 "parser.c"
+#line 1741 "parser.c"
     break;
 
   case 19:
-#line 173 "parser.y"
+#line 174 "parser.y"
             {
 		EmitCode (SubOp);
 		(yyval.i) = (yyvsp[-2].i) + 1 + (yyvsp[0].i);
 	    }
-#line 1749 "parser.c"
+#line 1750 "parser.c"
     break;
 
   case 20:
-#line 179 "parser.y"
+#line 180 "parser.y"
             {
 		EmitCode (MulOp);
 		(yyval.i) = (yyvsp[-2].i) + 1 + (yyvsp[0].i);
 	    }
-#line 1758 "parser.c"
+#line 1759 "parser.c"
     break;
 
   case 21:
-#line 185 "parser.y"
+#line 186 "parser.y"
             {
 		EmitCode (DivOp);
 		(yyval.i) = (yyvsp[-2].i) + 1 + (yyvsp[0].i);
 	    }
-#line 1767 "parser.c"
+#line 1768 "parser.c"
     break;
 
   case 22:
-#line 191 "parser.y"
+#line 192 "parser.y"
             {
 		EmitCode (ModOp);
 		(yyval.i) = (yyvsp[-2].i) + 1 + (yyvsp[0].i);
 	    }
-#line 1776 "parser.c"
+#line 1777 "parser.c"
     break;
 
   case 23:
-#line 197 "parser.y"
+#line 198 "parser.y"
             {
 		(yyval.i) = (yyvsp[0].i);
 	    }
-#line 1784 "parser.c"
+#line 1785 "parser.c"
     break;
 
   case 24:
-#line 202 "parser.y"
+#line 203 "parser.y"
             {
 		EmitCode (NegOp);
 		(yyval.i) = 1 + (yyvsp[0].i);
 	    }
-#line 1793 "parser.c"
+#line 1794 "parser.c"
     break;
 
   case 25:
-#line 208 "parser.y"
+#line 209 "parser.y"
             {
 		EmitCode (NotOp);
 		(yyval.i) = 1 + (yyvsp[0].i);
 	    }
-#line 1802 "parser.c"
+#line 1803 "parser.c"
     break;
 
   case 26:
-#line 214 "parser.y"
+#line 215 "parser.y"
             {
 		EmitCode (InvOp);
 		(yyval.i) = 1 + (yyvsp[0].i);
 	    }
-#line 1811 "parser.c"
+#line 1812 "parser.c"
     break;
 
   case 27:
-#line 220 "parser.y"
+#line 221 "parser.y"
             {
 		(yyval.i) = (yyvsp[-1].i);
 	    }
-#line 1819 "parser.c"
+#line 1820 "parser.c"
     break;
 
   case 28:
-#line 225 "parser.y"
+#line 226 "parser.y"
             {
 		    EmitCode (PushOp, (yyvsp[0].d));
 		    (yyval.i) = 2;
 	    }
-#line 1828 "parser.c"
+#line 1829 "parser.c"
     break;
 
   case 29:
-#line 231 "parser.y"
+#line 232 "parser.y"
             {
 		    EmitCode (PushOp, M_PI);
 	        (yyval.i) = 2;
 	    }
-#line 1837 "parser.c"
+#line 1838 "parser.c"
     break;
 
   case 30:
-#line 237 "parser.y"
+#line 238 "parser.y"
             {
             if ((yyvsp[0].s)[0] == '_') {
-                varx = eeGetFloat((yyvsp[0].s));
-                if (!isnan(varx))
+                varx = eeGetFloat((yyvsp[0].s) + 1);
+                if (!isnan(varx)) {
                     EmitCode(PushOp, varx);
+                }
                 else {
                     sprintf(msg, "invalid column reference %s in expression", (yyvsp[0].s));
                     yyerror(msg);
@@ -1852,213 +1854,213 @@ yyreduce:
             }
 	        (yyval.i) = 2;
 	    }
-#line 1856 "parser.c"
+#line 1858 "parser.c"
     break;
 
   case 32:
-#line 258 "parser.y"
+#line 260 "parser.y"
             {
 		EmitCode (SinOp);
 		(yyval.i) = (yyvsp[-1].i) + 1;
 	    }
-#line 1865 "parser.c"
+#line 1867 "parser.c"
     break;
 
   case 33:
-#line 264 "parser.y"
+#line 266 "parser.y"
             {
 		EmitCode (CosOp);
 		(yyval.i) = (yyvsp[-1].i) + 1;
 	    }
-#line 1874 "parser.c"
+#line 1876 "parser.c"
     break;
 
   case 34:
-#line 270 "parser.y"
+#line 272 "parser.y"
             {
 		EmitCode (TanOp);
 		(yyval.i) = (yyvsp[-1].i) + 1;
 	    }
-#line 1883 "parser.c"
+#line 1885 "parser.c"
     break;
 
   case 35:
-#line 276 "parser.y"
+#line 278 "parser.y"
             {
 		EmitCode (Atan2Op);
 		(yyval.i) = (yyvsp[-3].i) + (yyvsp[-1].i) + 1;
 	    }
-#line 1892 "parser.c"
+#line 1894 "parser.c"
     break;
 
   case 36:
-#line 282 "parser.y"
+#line 284 "parser.y"
             {
 		EmitCode (AtanOp);
 		(yyval.i) = (yyvsp[-1].i) + 1;
 	    }
-#line 1901 "parser.c"
+#line 1903 "parser.c"
     break;
 
   case 37:
-#line 289 "parser.y"
+#line 291 "parser.y"
             {
 		EmitCode (TanhOp);
 		(yyval.i) = (yyvsp[-1].i) + 1;
 	    }
-#line 1910 "parser.c"
+#line 1912 "parser.c"
     break;
 
   case 38:
-#line 295 "parser.y"
+#line 297 "parser.y"
             {
 		EmitCode (SinhOp);
 		(yyval.i) = (yyvsp[-1].i) + 1;
 	    }
-#line 1919 "parser.c"
+#line 1921 "parser.c"
     break;
 
   case 39:
-#line 301 "parser.y"
+#line 303 "parser.y"
             {
 		EmitCode (CoshOp);
 		(yyval.i) = (yyvsp[-1].i) + 1;
 	    }
-#line 1928 "parser.c"
+#line 1930 "parser.c"
     break;
 
   case 40:
-#line 307 "parser.y"
+#line 309 "parser.y"
             {
 		EmitCode (PowOp);
 		(yyval.i) = (yyvsp[-3].i) + (yyvsp[-1].i) + 1;
 	    }
-#line 1937 "parser.c"
+#line 1939 "parser.c"
     break;
 
   case 41:
-#line 313 "parser.y"
+#line 315 "parser.y"
             {
 		EmitCode (ExpOp);
 		(yyval.i) = (yyvsp[-1].i) + 1;
 	    }
-#line 1946 "parser.c"
+#line 1948 "parser.c"
     break;
 
   case 42:
-#line 319 "parser.y"
+#line 321 "parser.y"
             {
 		EmitCode (LnOp);
 		(yyval.i) = (yyvsp[-1].i) + 1;
 	    }
-#line 1955 "parser.c"
+#line 1957 "parser.c"
     break;
 
   case 43:
-#line 325 "parser.y"
+#line 327 "parser.y"
             {
 		EmitCode (LogOp);
 		(yyval.i) = (yyvsp[-1].i) + 1;
 	    }
-#line 1964 "parser.c"
+#line 1966 "parser.c"
     break;
 
   case 44:
-#line 331 "parser.y"
+#line 333 "parser.y"
             {
 		EmitCode (SqrtOp);
 		(yyval.i) = (yyvsp[-1].i) + 1;
 	    }
-#line 1973 "parser.c"
+#line 1975 "parser.c"
     break;
 
   case 45:
-#line 337 "parser.y"
+#line 339 "parser.y"
             {
 		EmitCode (HypotOp);
 		(yyval.i) = (yyvsp[-3].i) + (yyvsp[-1].i) + 1;
 	    }
-#line 1982 "parser.c"
+#line 1984 "parser.c"
     break;
 
   case 46:
-#line 343 "parser.y"
+#line 345 "parser.y"
             {
 		EmitCode (FloorOp);
 		(yyval.i) = (yyvsp[-1].i) + 1;
 	    }
-#line 1991 "parser.c"
+#line 1993 "parser.c"
     break;
 
   case 47:
-#line 349 "parser.y"
+#line 351 "parser.y"
             {
 		EmitCode (CeilOp);
 		(yyval.i) = (yyvsp[-1].i) + 1;
 	    }
-#line 2000 "parser.c"
+#line 2002 "parser.c"
     break;
 
   case 48:
-#line 355 "parser.y"
+#line 357 "parser.y"
             {
 		EmitCode (FmodOp);
 		(yyval.i) = (yyvsp[-3].i) + (yyvsp[-1].i) + 1;
 	    }
-#line 2009 "parser.c"
+#line 2011 "parser.c"
     break;
 
   case 49:
-#line 361 "parser.y"
+#line 363 "parser.y"
             {
 		EmitCode (FabsOp);
 		(yyval.i) = (yyvsp[-1].i) + 1;
 	    }
-#line 2018 "parser.c"
+#line 2020 "parser.c"
     break;
 
   case 50:
-#line 371 "parser.y"
+#line 373 "parser.y"
             {
 		EmitCode (JzOp, 0);
 		(yyval.i) = 2;
 	    }
-#line 2027 "parser.c"
+#line 2029 "parser.c"
     break;
 
   case 51:
-#line 380 "parser.y"
+#line 382 "parser.y"
             {
 		EmitCode (JmpOp, 0);
 		(yyval.i) = 2;
 	    }
-#line 2036 "parser.c"
+#line 2038 "parser.c"
     break;
 
   case 52:
-#line 389 "parser.y"
+#line 391 "parser.y"
             {
 		EmitCode (CopyOp);
 		EmitCode (JnzOp, 0);
 		EmitCode (PopOp);
 		(yyval.i) = 4;
 	    }
-#line 2047 "parser.c"
+#line 2049 "parser.c"
     break;
 
   case 53:
-#line 400 "parser.y"
+#line 402 "parser.y"
             {
 		EmitCode (CopyOp);
 		EmitCode (JzOp, 0);
 		EmitCode (PopOp);
 		(yyval.i) = 4;
 	    }
-#line 2058 "parser.c"
+#line 2060 "parser.c"
     break;
 
 
-#line 2062 "parser.c"
+#line 2064 "parser.c"
 
       default: break;
     }
@@ -2290,5 +2292,5 @@ yyreturn:
 #endif
   return yyresult;
 }
-#line 408 "parser.y"
+#line 410 "parser.y"
 

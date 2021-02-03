@@ -5,7 +5,8 @@
 # include <string.h>
 # include <math.h>
 # include "expressions.h"
-# include "eevars.h"
+
+extern float eeGetFloat(char *);
 
 extern void yyerror ( );
 extern int  yylex  ( );
@@ -236,9 +237,10 @@ expression
 	| NAME
 	    {
             if ($1[0] == '_') {
-                varx = eeGetFloat($1);
-                if (!isnan(varx))
+                varx = eeGetFloat($1 + 1);
+                if (!isnan(varx)) {
                     EmitCode(PushOp, varx);
+                }
                 else {
                     sprintf(msg, "invalid column reference %s in expression", $1);
                     yyerror(msg);
